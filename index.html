@@ -59,6 +59,13 @@ li.tx:first-child{border-top:0}
 .tx small{color:var(--muted);display:block;font-size:.78rem}
 .amt{font-weight:700;white-space:nowrap}
 .acts{display:flex;align-items:center}
+li.tx.edrow{display:block;background:var(--track);border-radius:10px;padding:12px;margin:6px 0;border-top:0}
+.edg{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.3fr) minmax(0,1fr);gap:8px}
+.edrow input,.edrow select{width:100%;min-width:0;font-size:16px;box-sizing:border-box}
+.edn{margin-top:8px}
+.edb{display:flex;gap:8px;margin-top:10px}
+.edb .btn{flex:1}
+@media(max-width:520px){.edg{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}.edg select{grid-column:1/-1;order:3}}
 .x{background:none;border:0;color:var(--muted);cursor:pointer;font-size:1.1rem;padding:4px 8px;border-radius:6px}
 .empty{color:var(--muted);padding:14px 0;font-size:.9rem}
 .empty button{margin-top:10px}
@@ -146,7 +153,7 @@ button{touch-action:manipulation}
       <div><label for="jml">Jumlah (Rp)</label><input id="jml" type="text" inputmode="numeric" autocomplete="off" required placeholder="50.000"></div>
       <div><label for="kat">Kategori</label><select id="kat"></select></div>
       <div><label for="cat">Catatan</label><input id="cat" type="text" placeholder="Opsional"></div>
-      <div class="w" style="display:flex;gap:8px"><button class="btn" id="sv" style="flex:1">Simpan transaksi</button><button class="btn ghost" id="bt" type="button" hidden>Batal</button></div>
+      <div class="w"><button class="btn" style="width:100%">Simpan transaksi</button></div>
     </form>
   </section>
 
@@ -220,7 +227,7 @@ function render(){
   $("cats").innerHTML=ks.length?ks.map(function(k){var p=by[k]/o*100;return '<div class="cat"><div><span>'+esc(k)+'</span><span>'+rp(by[k])+' · '+Math.round(p)+'%</span></div><div class="bar"><i style="width:'+p+'%"></i></div></div>'}).join(""):'<div class="empty">Belum ada pengeluaran di bulan ini.</div>';
 
   var rows=tx.filter(function(x){return ym(x.d)===m}).sort(function(a,b){return b.d.localeCompare(a.d)||b.id-a.id});
-  $("list").innerHTML=rows.length?rows.map(function(x){var c=x.t==="in"?"in":"out";return '<li class="tx"><span class="dot" style="background:var(--'+c+')"></span><div>'+esc(x.k)+'<small>'+x.d.split("-").reverse().join("/")+(x.n?' · '+esc(x.n):"")+'</small></div><span class="amt '+c+'">'+(x.t==="in"?"+":"−")+rp(x.a)+'</span><span class="acts"><button class="x" data-edit="'+x.id+'" aria-label="Ubah transaksi">✎</button><button class="x" data-del="'+x.id+'" aria-label="Hapus transaksi">×</button></span></li>'}).join(""):'<div class="empty">Belum ada transaksi di bulan ini. Isi formulir di bawah untuk mulai mencatat.<br><button class="btn ghost" id="demo">Coba dengan data contoh</button></div>';
+  $("list").innerHTML=rows.length?rows.map(function(x){var c=x.t==="in"?"in":"out";if(String(x.id)===String(editId))return editRow(x);return '<li class="tx"><span class="dot" style="background:var(--'+c+')"></span><div>'+esc(x.k)+'<small>'+x.d.split("-").reverse().join("/")+(x.n?' · '+esc(x.n):"")+'</small></div><span class="amt '+c+'">'+(x.t==="in"?"+":"−")+rp(x.a)+'</span><span class="acts"><button class="x" data-edit="'+x.id+'" aria-label="Ubah transaksi">✎</button><button class="x" data-del="'+x.id+'" aria-label="Hapus transaksi">×</button></span></li>'}).join(""):'<div class="empty">Belum ada transaksi di bulan ini. Isi formulir di bawah untuk mulai mencatat.<br><button class="btn ghost" id="demo">Coba dengan data contoh</button></div>';
   trend(m);trenH(m);kum();top5(m);$("jdt").textContent="Tren harian · "+lbl(m);$("jdl").textContent="Transaksi harian · "+lbl(m);
 }
 
@@ -284,35 +291,34 @@ function trend(m){
 }
 
 var editId=null;
-function setTipe(t){tipe=t;document.querySelectorAll(".seg button").forEach(function(x){x.setAttribute("aria-pressed",x.dataset.t===t)});fillKat()}
-function todayStr(){var n=new Date(),z=function(v){return String(v).padStart(2,"0")};return n.getFullYear()+"-"+z(n.getMonth()+1)+"-"+z(n.getDate())}
-function startEdit(id){
-  var r=tx.filter(function(x){return String(x.id)===String(id)})[0];if(!r)return;
-  editId=r.id;setTipe(r.t);
-  if(KAT[r.t].indexOf(r.k)<0)$("kat").insertAdjacentHTML("afterbegin","<option>"+esc(r.k)+"</option>");
-  $("kat").value=r.k;$("tgl").value=r.d;
-  $("jml").value=String(r.a).replace(/\B(?=(\d{3})+(?!\d))/g,".");
-  $("cat").value=r.n||"";
-  $("sv").textContent="Simpan perubahan";$("bt").hidden=false;
-  $("f").scrollIntoView({behavior:"smooth",block:"center"});
-}
-function endEdit(){editId=null;$("sv").textContent="Simpan transaksi";$("bt").hidden=true;$("jml").value="";$("cat").value="";$("tgl").value=todayStr();setTipe(tipe)}
-$("bt").onclick=endEdit;
 document.querySelectorAll(".seg button").forEach(function(b){b.onclick=function(){tipe=b.dataset.t;document.querySelectorAll(".seg button").forEach(function(x){x.setAttribute("aria-pressed",x===b)});fillKat()}});
 $("f").onsubmit=function(e){e.preventDefault();var a=parseInt($("jml").value.replace(/\D/g,""),10);if(!(a>0))return;
-  if(editId!=null){var ix=tx.findIndex(function(x){return String(x.id)===String(editId)});
-    if(ix>=0)tx[ix]={id:tx[ix].id,t:tipe,d:$("tgl").value,a:a,k:$("kat").value,n:$("cat").value.trim()};
-    var dd=$("tgl").value;save();endEdit();$("bulan").value=ym(dd);render();msg("Transaksi diperbarui.");return}
   persist({id:Date.now(),t:tipe,d:$("tgl").value,a:a,k:$("kat").value,n:$("cat").value.trim()});
   $("jml").value="";$("cat").value="";$("bulan").value=ym($("tgl").value);render()};
 document.addEventListener("click",function(e){
-  var ed=e.target.dataset&&e.target.dataset.edit;if(ed)startEdit(ed);
-  var d=e.target.dataset&&e.target.dataset.del;if(d&&confirm("Hapus transaksi ini?")){if(String(editId)===String(d))endEdit();remove(d)}
+  var t=e.target,ds=t.dataset||{};
+  if(ds.edit){editId=ds.edit;render();return}
+  if(ds.cancel){editId=null;render();return}
+  if(ds.save){saveRow(ds.save);return}
+  if(ds.del&&confirm("Hapus transaksi ini?")){if(String(editId)===String(ds.del))editId=null;remove(ds.del)}
   if(e.target.id==="demo"){var m=$("bulan").value,n=0;
     [["in","01","Gaji",12000000,"Gaji bulanan"],["in","12","Usaha",1500000,"Proyek sampingan"],["out","02","Rumah & Utilitas",3000000,"Sewa"],["out","05","Makanan & Minuman",850000,"Belanja mingguan"],["out","09","Tagihan",650000,"Listrik dan internet"],["out","14","Transportasi",400000,"Bensin"],["out","18","Hiburan & Lifestyle",300000,"Nonton"],["out","22","Pendidikan & Pengembangan Diri",2000000,"Kursus"],["out","25","Makanan & Minuman",700000,"Makan di luar"]].forEach(function(r){persist({id:Date.now()+n++,t:r[0],d:m+"-"+r[1],a:r[3],k:r[2],n:r[4]})});}
 });
 document.querySelectorAll(".tabs button").forEach(function(b){b.onclick=function(){document.querySelectorAll(".tabs button").forEach(function(x){x.setAttribute("aria-selected",x===b)});$("p-harian").hidden=b.dataset.tab!=="harian";$("p-rekap").hidden=b.dataset.tab!=="rekap"}});
 var DL=null;
+function editRow(x){
+  var ks=KAT[x.t].slice();if(ks.indexOf(x.k)<0)ks.unshift(x.k);
+  var opts=ks.map(function(k){return "<option"+(k===x.k?" selected":"")+">"+esc(k)+"</option>"}).join("");
+  return '<li class="tx edrow"><div class="edg"><input type="date" id="e-d" value="'+esc(x.d)+'" aria-label="Tanggal"><select id="e-k" aria-label="Kategori">'+opts+'</select><input type="text" id="e-a" inputmode="numeric" autocomplete="off" value="'+String(x.a).replace(/\B(?=(\d{3})+(?!\d))/g,".")+'" aria-label="Jumlah"></div><input type="text" id="e-n" class="edn" placeholder="Catatan (opsional)" value="'+esc(x.n||"")+'" aria-label="Catatan"><div class="edb"><button type="button" class="btn" data-save="'+x.id+'">Simpan</button><button type="button" class="btn ghost" data-cancel="1">Batal</button></div></li>';
+}
+function saveRow(id){
+  var a=parseInt($("e-a").value.replace(/\D/g,""),10),d=$("e-d").value;
+  if(!(a>0)||!d){msg("Tanggal dan jumlah harus diisi.");return}
+  var r=tx.filter(function(x){return String(x.id)===String(id)})[0];if(!r)return;
+  r.d=d;r.a=a;r.k=$("e-k").value;r.n=$("e-n").value.trim();
+  editId=null;save();$("bulan").value=ym(d);render();msg("Transaksi diperbarui.");
+}
+document.addEventListener("input",function(e){if(e.target.id==="e-a"){var v=e.target.value.replace(/\D/g,"").replace(/\B(?=(\d{3})+(?!\d))/g,".");e.target.value=v}});
 function msg(t){$("msg").textContent=t;setTimeout(function(){$("msg").textContent=""},4000)}
 function scope(){var m=$("bulan").value,all=$("cak").value==="semua";return{all:all,m:m,rows:tx.filter(function(x){return all||ym(x.d)===m}).sort(function(a,b){return a.d.localeCompare(b.d)||a.id-b.id})}}
 function saveFile(name,data){
