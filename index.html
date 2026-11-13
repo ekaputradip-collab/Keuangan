@@ -196,7 +196,7 @@ button{touch-action:manipulation}
 <script src="jspdf.umd.min.js"></script>
 <script>
 var KEY="keuangan-v1",tx=[],tipe="out";
-var KAT={out:["Makanan","Transportasi","Tagihan","Tempat tinggal","Belanja","Hiburan","Kesehatan","Pendidikan","Tabungan","Lainnya"],in:["Gaji","Bonus","Usaha","Investasi","Lainnya"]};
+var KAT={out:["Kebutuhan Pokok","Transportasi","Tagihan","Makanan & Minuman","Rumah & Utilitas","Hiburan & Lifestyle","Kesehatan","Pendidikan & Pengembangan Diri","Keluarga & Sosial","Kebutuhan Echal","Lainnya"],in:["Gaji","Bonus","Usaha","Investasi","Lainnya"]};
 var $=function(i){return document.getElementById(i)};
 function load(){try{var r=localStorage.getItem(KEY);tx=r?JSON.parse(r):[]}catch(e){tx=[]}}
 function save(){try{localStorage.setItem(KEY,JSON.stringify(tx))}catch(e){}}
