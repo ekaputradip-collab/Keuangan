@@ -1,5 +1,5 @@
 // Naikkan angka versi ini setiap kali file aplikasi diubah, agar HP mengambil versi baru.
-var CACHE = "keuangan-v2";
+var CACHE = "keuangan-v3";
 var FILES = ["./", "index.html", "manifest.json", "jspdf.umd.min.js", "icon-192.png", "icon-512.png", "icon-maskable-512.png"];
 
 self.addEventListener("install", function (e) {

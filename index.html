@@ -58,6 +58,7 @@ li.tx:first-child{border-top:0}
 .dot{width:9px;height:9px;border-radius:50%}
 .tx small{color:var(--muted);display:block;font-size:.78rem}
 .amt{font-weight:700;white-space:nowrap}
+.acts{display:flex;align-items:center}
 .x{background:none;border:0;color:var(--muted);cursor:pointer;font-size:1.1rem;padding:4px 8px;border-radius:6px}
 .empty{color:var(--muted);padding:14px 0;font-size:.9rem}
 .empty button{margin-top:10px}
@@ -145,7 +146,7 @@ button{touch-action:manipulation}
       <div><label for="jml">Jumlah (Rp)</label><input id="jml" type="text" inputmode="numeric" autocomplete="off" required placeholder="50.000"></div>
       <div><label for="kat">Kategori</label><select id="kat"></select></div>
       <div><label for="cat">Catatan</label><input id="cat" type="text" placeholder="Opsional"></div>
-      <div class="w"><button class="btn" style="width:100%">Simpan transaksi</button></div>
+      <div class="w" style="display:flex;gap:8px"><button class="btn" id="sv" style="flex:1">Simpan transaksi</button><button class="btn ghost" id="bt" type="button" hidden>Batal</button></div>
     </form>
   </section>
 
@@ -196,14 +197,14 @@ button{touch-action:manipulation}
 <script src="jspdf.umd.min.js"></script>
 <script>
 var KEY="keuangan-v1",tx=[],tipe="out";
-var KAT={out:["Kebutuhan Pokok","Transportasi","Tagihan","Makanan & Minuman","Rumah & Utilitas","Hiburan & Lifestyle","Kesehatan","Pendidikan & Pengembangan Diri","Keluarga & Sosial","Kebutuhan Echal","Lainnya"],in:["Gaji","Bonus","Usaha","Investasi","Lainnya"]};
+var KAT={out:["Kebutuhan Pokok","Makanan & Minuman","Rumah & Utilitas","Kesehatan","Hiburan & Lifestyle","Keluarga & Sosial","Pendidikan & Pengembangan Diri","Transportasi","Tagihan","Kebutuhan Echal"],in:["Gaji","Bonus","Usaha","Investasi","Lainnya"]};
 var $=function(i){return document.getElementById(i)};
 function load(){try{var r=localStorage.getItem(KEY);tx=r?JSON.parse(r):[]}catch(e){tx=[]}}
 function save(){try{localStorage.setItem(KEY,JSON.stringify(tx))}catch(e){}}
 function rp(n){return "Rp "+String(Math.round(n)).replace(/\B(?=(\d{3})+(?!\d))/g,".")}
 function esc(s){return String(s).replace(/[&<>"]/g,function(c){return{"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]})}
 function ym(d){return d.slice(0,7)}
-function fillKat(){$("kat").innerHTML=KAT[tipe].map(function(k){return "<option>"+k+"</option>"}).join("")}
+function fillKat(){$("kat").innerHTML=KAT[tipe].map(function(k){return "<option>"+k.replace(/&/g,"&amp;")+"</option>"}).join("")}
 function sum(m,t){return tx.filter(function(x){return ym(x.d)===m&&x.t===t}).reduce(function(a,x){return a+x.a},0)}
 
 function render(){
@@ -219,7 +220,7 @@ function render(){
   $("cats").innerHTML=ks.length?ks.map(function(k){var p=by[k]/o*100;return '<div class="cat"><div><span>'+esc(k)+'</span><span>'+rp(by[k])+' · '+Math.round(p)+'%</span></div><div class="bar"><i style="width:'+p+'%"></i></div></div>'}).join(""):'<div class="empty">Belum ada pengeluaran di bulan ini.</div>';
 
   var rows=tx.filter(function(x){return ym(x.d)===m}).sort(function(a,b){return b.d.localeCompare(a.d)||b.id-a.id});
-  $("list").innerHTML=rows.length?rows.map(function(x){var c=x.t==="in"?"in":"out";return '<li class="tx"><span class="dot" style="background:var(--'+c+')"></span><div>'+esc(x.k)+'<small>'+x.d.split("-").reverse().join("/")+(x.n?' · '+esc(x.n):"")+'</small></div><span class="amt '+c+'">'+(x.t==="in"?"+":"−")+rp(x.a)+'</span><button class="x" data-del="'+x.id+'" aria-label="Hapus transaksi">×</button></li>'}).join(""):'<div class="empty">Belum ada transaksi di bulan ini. Isi formulir di bawah untuk mulai mencatat.<br><button class="btn ghost" id="demo">Coba dengan data contoh</button></div>';
+  $("list").innerHTML=rows.length?rows.map(function(x){var c=x.t==="in"?"in":"out";return '<li class="tx"><span class="dot" style="background:var(--'+c+')"></span><div>'+esc(x.k)+'<small>'+x.d.split("-").reverse().join("/")+(x.n?' · '+esc(x.n):"")+'</small></div><span class="amt '+c+'">'+(x.t==="in"?"+":"−")+rp(x.a)+'</span><span class="acts"><button class="x" data-edit="'+x.id+'" aria-label="Ubah transaksi">✎</button><button class="x" data-del="'+x.id+'" aria-label="Hapus transaksi">×</button></span></li>'}).join(""):'<div class="empty">Belum ada transaksi di bulan ini. Isi formulir di bawah untuk mulai mencatat.<br><button class="btn ghost" id="demo">Coba dengan data contoh</button></div>';
   trend(m);trenH(m);kum();top5(m);$("jdt").textContent="Tren harian · "+lbl(m);$("jdl").textContent="Transaksi harian · "+lbl(m);
 }
 
@@ -282,14 +283,33 @@ function trend(m){
   $("tren").innerHTML=s;
 }
 
+var editId=null;
+function setTipe(t){tipe=t;document.querySelectorAll(".seg button").forEach(function(x){x.setAttribute("aria-pressed",x.dataset.t===t)});fillKat()}
+function todayStr(){var n=new Date(),z=function(v){return String(v).padStart(2,"0")};return n.getFullYear()+"-"+z(n.getMonth()+1)+"-"+z(n.getDate())}
+function startEdit(id){
+  var r=tx.filter(function(x){return String(x.id)===String(id)})[0];if(!r)return;
+  editId=r.id;setTipe(r.t);
+  if(KAT[r.t].indexOf(r.k)<0)$("kat").insertAdjacentHTML("afterbegin","<option>"+esc(r.k)+"</option>");
+  $("kat").value=r.k;$("tgl").value=r.d;
+  $("jml").value=String(r.a).replace(/\B(?=(\d{3})+(?!\d))/g,".");
+  $("cat").value=r.n||"";
+  $("sv").textContent="Simpan perubahan";$("bt").hidden=false;
+  $("f").scrollIntoView({behavior:"smooth",block:"center"});
+}
+function endEdit(){editId=null;$("sv").textContent="Simpan transaksi";$("bt").hidden=true;$("jml").value="";$("cat").value="";$("tgl").value=todayStr();setTipe(tipe)}
+$("bt").onclick=endEdit;
 document.querySelectorAll(".seg button").forEach(function(b){b.onclick=function(){tipe=b.dataset.t;document.querySelectorAll(".seg button").forEach(function(x){x.setAttribute("aria-pressed",x===b)});fillKat()}});
 $("f").onsubmit=function(e){e.preventDefault();var a=parseInt($("jml").value.replace(/\D/g,""),10);if(!(a>0))return;
+  if(editId!=null){var ix=tx.findIndex(function(x){return String(x.id)===String(editId)});
+    if(ix>=0)tx[ix]={id:tx[ix].id,t:tipe,d:$("tgl").value,a:a,k:$("kat").value,n:$("cat").value.trim()};
+    var dd=$("tgl").value;save();endEdit();$("bulan").value=ym(dd);render();msg("Transaksi diperbarui.");return}
   persist({id:Date.now(),t:tipe,d:$("tgl").value,a:a,k:$("kat").value,n:$("cat").value.trim()});
   $("jml").value="";$("cat").value="";$("bulan").value=ym($("tgl").value);render()};
 document.addEventListener("click",function(e){
-  var d=e.target.dataset&&e.target.dataset.del;if(d)remove(d);
+  var ed=e.target.dataset&&e.target.dataset.edit;if(ed)startEdit(ed);
+  var d=e.target.dataset&&e.target.dataset.del;if(d&&confirm("Hapus transaksi ini?")){if(String(editId)===String(d))endEdit();remove(d)}
   if(e.target.id==="demo"){var m=$("bulan").value,n=0;
-    [["in","01","Gaji",12000000,"Gaji bulanan"],["in","12","Usaha",1500000,"Proyek sampingan"],["out","02","Tempat tinggal",3000000,"Sewa"],["out","05","Makanan",850000,"Belanja mingguan"],["out","09","Tagihan",650000,"Listrik dan internet"],["out","14","Transportasi",400000,"Bensin"],["out","18","Hiburan",300000,"Nonton"],["out","22","Tabungan",2000000,"Dana darurat"],["out","25","Makanan",700000,"Makan di luar"]].forEach(function(r){persist({id:Date.now()+n++,t:r[0],d:m+"-"+r[1],a:r[3],k:r[2],n:r[4]})});}
+    [["in","01","Gaji",12000000,"Gaji bulanan"],["in","12","Usaha",1500000,"Proyek sampingan"],["out","02","Rumah & Utilitas",3000000,"Sewa"],["out","05","Makanan & Minuman",850000,"Belanja mingguan"],["out","09","Tagihan",650000,"Listrik dan internet"],["out","14","Transportasi",400000,"Bensin"],["out","18","Hiburan & Lifestyle",300000,"Nonton"],["out","22","Pendidikan & Pengembangan Diri",2000000,"Kursus"],["out","25","Makanan & Minuman",700000,"Makan di luar"]].forEach(function(r){persist({id:Date.now()+n++,t:r[0],d:m+"-"+r[1],a:r[3],k:r[2],n:r[4]})});}
 });
 document.querySelectorAll(".tabs button").forEach(function(b){b.onclick=function(){document.querySelectorAll(".tabs button").forEach(function(x){x.setAttribute("aria-selected",x===b)});$("p-harian").hidden=b.dataset.tab!=="harian";$("p-rekap").hidden=b.dataset.tab!=="rekap"}});
 var DL=null;
